@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  fake-news-classifier:
+    build: fake-news-classifier
+    container_name: fake-news-classifier
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - fake-news-network
+  ollama-fake-news:
+    build:
+      context: fake-news-classifier
+      dockerfile: ollama.Dockerfile
+    container_name: ollama-fake-news
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_MODELS=llama3.2:1b
+    networks:
+      - fake-news-network
+
+  news-summarizer:
+    build: news-summarizer
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - fake-news-network
+  ollama-summarizer:
+    build:
+      context: news-summarizer
+      dockerfile: ollama.Dockerfile
+    container_name: ollama-summarizer
+    ports:
+      - "11435:11434"
+    volumes:
+      - ollama_data_summarizer:/root/.ollama
+    environment:
+      - OLLAMA_MODELS=llama3.2:1b
+    restart: unless-stopped
+    networks:
+      - fake-news-network
+networks:
+  fake-news-network:
+    driver: bridge
+volumes:
+  ollama_data:
+    driver: local
+  ollama_data_summarizer:
+    driver: local

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classificador de Notícias</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; }
+    textarea { width: 100%; height: 120px; }
+    button { margin-top: 10px; padding: 10px 20px; }
+    .resultado { margin-top: 30px; }
+    .bloco { margin-bottom: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Classificador e Resumidor de Notícias</h1>
+  <form id="formNoticia">
+    <label for="noticia">Cole a notícia para análise:</label><br>
+    <textarea id="noticia" required></textarea><br>
+    <button type="submit">Analisar</button>
+  </form>
+  <div class="resultado" id="resultado"></div>
+  <script>
+    document.getElementById('formNoticia').onsubmit = async function(e) {
+      e.preventDefault();
+      const noticia = document.getElementById('noticia').value;
+      document.getElementById('resultado').innerHTML = 'Analisando...';
+      try {
+        const resp = await fetch('http://localhost:4000/analisar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ noticia })
+        });
+        const data = await resp.json();
+        if (data.erro) {
+          document.getElementById('resultado').innerHTML = '<b>Erro:</b> ' + data.erro;
+        } else {
+          document.getElementById('resultado').innerHTML =
+            `<div class='bloco'><b>Veracidade:</b><br>${data.isFakeNews ? 'Notícia Falsa' : 'Notícia Verdadeira'}</div>` +
+            `<div class='bloco'><b>Resumo:</b><br>${data.summary}</div>`;
+        }
+      } catch (err) {
+      console.log(err)
+        document.getElementById('resultado').innerHTML = '<b>Erro ao conectar à API.</b>';
+      }
+    }
+  </script>
+</body>
+</html>
