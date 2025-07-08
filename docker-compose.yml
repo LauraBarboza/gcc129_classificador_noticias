@@ -1,6 +1,28 @@
 version: '3.8'
 
 services:
+  api:
+    build: 
+      context: api
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=production
+      - PORT=4000
+    depends_on:
+      - fake-news-classifier
+      - news-summarizer
+    restart: unless-stopped
+    networks:
+      - fake-news-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   fake-news-classifier:
     build: fake-news-classifier
     container_name: fake-news-classifier
@@ -14,6 +36,19 @@ services:
     restart: unless-stopped
     networks:
       - fake-news-network
+    depends_on:
+      - ollama-fake-news
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   ollama-fake-news:
     build:
       context: fake-news-classifier
@@ -27,9 +62,13 @@ services:
       - OLLAMA_MODELS=llama3.2:1b
     networks:
       - fake-news-network
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
 
   news-summarizer:
     build: news-summarizer
+    container_name: news-summarizer
     ports:
       - "3001:3001"
     environment:
@@ -40,6 +79,19 @@ services:
     restart: unless-stopped
     networks:
       - fake-news-network
+    depends_on:
+      - ollama-summarizer
+    security_opt:
+      - no-new-privileges:true
+    read_only: true
+    tmpfs:
+      - /tmp:noexec,nosuid,size=100m
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   ollama-summarizer:
     build:
       context: news-summarizer
@@ -54,11 +106,29 @@ services:
     restart: unless-stopped
     networks:
       - fake-news-network
+    security_opt:
+      - no-new-privileges:true
 networks:
   fake-news-network:
     driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.driver.mtu: "1500"
+
 volumes:
   ollama_data:
     driver: local
   ollama_data_summarizer:
     driver: local
+
+x-security-opts: &security-opts
+  security_opt:
+    - no-new-privileges:true
+    - apparmor:docker-default
+  cap_drop:
+    - ALL
+  cap_add:
+    - CHOWN
+    - SETGID
+    - SETUID
